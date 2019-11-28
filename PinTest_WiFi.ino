@@ -27,14 +27,18 @@ static const uint8_t LED_BUILTIN = 32;
 #define TIME_TO_SLEEP  5        /* Time ESP32 will go to sleep (in seconds) */
 
 signed char TemperatureArray[EEPROM_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7}; // temporal temperature array
+signed char TimeArray[EEPROM_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7}; // temporal temperature array
 
-int loopCounter = 0; // main loop counter
+signed char RTC_DATA_ATTR TemperatureArrayRTC[EEPROM_SIZE];
+signed char RTC_DATA_ATTR TimeArrayRTC[EEPROM_SIZE];
+struct RTC_DATA_ATTR tm timeinfo;
+
+int RTC_DATA_ATTR loopCounter = 0; // main loop counter
 
 int addr = 0;
 
 void printLocalTime()
 {
-  struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     Serial.println("Failed to obtain time");
     return;
@@ -64,7 +68,6 @@ void takeDataWeb() {
   http.begin(cli,httpSettings); //HTTP
   Serial.print("[HTTP] GET...\n");
   // start connection and send HTTP header
-  // start connection and send HTTP header
   int httpCode = http.GET();
 
   // httpCode will be negative on error
@@ -93,7 +96,7 @@ void setup()
 {
   Serial.begin(115200);
   pinMode (LED_BUILTIN, OUTPUT);
-
+  Serial.println(loopCounter);
   if (LoopCount++ % 60 == 0) {
     takeDataWeb();
 
@@ -116,12 +119,20 @@ void loop()
 {
   int i = 0;
   loopCounter++;
-
-
-  // Wait a bit before scanning again
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  esp_deep_sleep_start();
+  
   Serial.println(" ");
   printLocalTime();
+  
   Serial.println(" ");
+
+  //reload
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+
+
+  Serial.flush(); 
+  
+ //  esp_wifi_stop();
+ // esp_light_sleep_start();
+  esp_deep_sleep_start();
+  Serial.println("This will never be printed");
 }
