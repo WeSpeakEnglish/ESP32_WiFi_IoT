@@ -14,6 +14,7 @@ OneWire ds(25);  //data wire connected to GPIO15
 DeviceAddress sensor1 = { 0x28, 0xFF, 0x45, 0x4C, 0x74, 0x15, 0x3, 0x1 };
 DeviceAddress sensor2 = { 0x28, 0xFF, 0xA7, 0xF2, 0x81, 0x15, 0x1, 0xD8};
 DallasTemperature sensors(&ds);
+float temp[8]; //temperature array
 
 const char* ssid       = "Redmi";
 const char* password   = "micromax";
@@ -133,20 +134,13 @@ void loop()
   printLocalTime();
   
   Serial.println(" ");
-  Serial.println(" eeeee.");
- Serial.print("Requesting temperatures...");
+ if (LoopCount > 1){
   sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  
   Serial.print("Sensor 1(*C): ");
   Serial.print(sensors.getTempC(sensor1)); 
-  Serial.print(" Sensor 1(*F): ");
-  Serial.println(sensors.getTempF(sensor1)); 
- 
-  Serial.print("Sensor 2(*C): ");
+  Serial.print(" Sensor 2(*C): ");
   Serial.print(sensors.getTempC(sensor2)); 
-  Serial.print(" Sensor 2(*F): ");
-  Serial.println(sensors.getTempF(sensor2)); 
+ }
   //reload
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 
