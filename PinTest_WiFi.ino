@@ -11,8 +11,8 @@
 #include <DallasTemperature.h>
 
 OneWire ds(25);  //data wire connected to GPIO15
-DeviceAddress sensor1 = { 0x28, 0xFF, 0x45, 0x4C, 0x74, 0x15, 0x3, 0x1 };
-DeviceAddress sensor2 = { 0x28, 0xFF, 0xA7, 0xF2, 0x81, 0x15, 0x1, 0xD8};
+DeviceAddress sensor1 = { 0x28, 0xFF, 0x45, 0x4C, 0x74, 0x15, 0x3, 0x1 }; //hot water
+DeviceAddress sensor2 = { 0x28, 0xFF, 0xA7, 0xF2, 0x81, 0x15, 0x1, 0xD8}; //cold water
 DallasTemperature sensors(&ds);
 float temp[8]; //temperature array
 
@@ -20,15 +20,18 @@ const char* ssid       = "Redmi";
 const char* password   = "micromax";
 
 const char* ntpServer = "pool.ntp.org";
-const char* httpSettings = "http://test.pollutants.eu/settings.php";
+const char* httpSettings = "http://test.pollutants.eu/setup.php?set_flag=1";
 
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
 int RTC_DATA_ATTR LoopCount = 0;
 
-static const uint8_t LED_BUILTIN = 32;
-#define BUILTIN_LED  LED_BUILTIN // backward compatibility
+//static const uint8_t LED_BUILTIN = 32;
+#define HEAT_RELAY  27 // backward compatibility
+#define PUMP1  26 // backward compatibility
+#define PUMP2  32 // backward compatibility
+#define COOLER 33 // backward compatibility
 
 #define EEPROM_SIZE 8
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
@@ -103,11 +106,21 @@ void takeDataWeb() {
 void setup()
 {
   Serial.begin(115200);
-  pinMode (LED_BUILTIN, OUTPUT);
+  
+  pinMode (HEAT_RELAY, OUTPUT);
+  digitalWrite(HEAT_RELAY, HIGH);
+  pinMode (PUMP1, OUTPUT);
+  digitalWrite(PUMP1, LOW);
+  pinMode (PUMP2, OUTPUT);
+  digitalWrite(PUMP2, LOW); 
+  pinMode (COOLER, OUTPUT);
+  digitalWrite(COOLER, LOW); 
+  
   Serial.println(loopCounter);
-  if (LoopCount++ % 60 == 0) {
-    takeDataWeb();
-
+  //if (LoopCount++ % 60 == 0) {
+  //  takeDataWeb();
+ // takeDataWeb();
+  
     if (!EEPROM.begin(EEPROM_SIZE))
     {
       Serial.println("failed to initialise EEPROM"); delay(1000000);
@@ -118,9 +131,8 @@ void setup()
       Serial.print(byte(EEPROM.read(i))); Serial.print(" ");
     }
     Serial.println("Setup done");
-  }
-sensors.begin();
-
+ // }
+  sensors.begin();
 }
 
 void loop()
@@ -130,25 +142,37 @@ void loop()
   
   loopCounter++;
   
+  sensors.begin();
+
   Serial.println(" ");
   printLocalTime();
   
   Serial.println(" ");
- if (LoopCount > 1){
+  if (loopCounter == 1)takeDataWeb();
+// if (LoopCount > 1){
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.print("Sensor 1(*C): ");
   Serial.print(sensors.getTempC(sensor1)); 
   Serial.print(" Sensor 2(*C): ");
   Serial.print(sensors.getTempC(sensor2)); 
- }
+ //}
   //reload
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+ // esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 
 
   Serial.flush(); 
+
   
+  //if (loopCounter % 10 == 0){
+ //  WiFi.mode(WIFI_STA);
+ //  takeDataWeb();
+  //  }
+    
+    delay(1000);
+  //digitalWrite(HEAT_RELAY, LOW);
+  //delay(1000);
  //  esp_wifi_stop();
  // esp_light_sleep_start();
-  esp_deep_sleep_start();
-  Serial.println("This will never be printed");
+ // esp_deep_sleep_start();
+  //Serial.println("This will never be printed");
 }
