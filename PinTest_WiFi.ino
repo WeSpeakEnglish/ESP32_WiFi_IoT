@@ -138,15 +138,19 @@ void printLocalTime()
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
-bool takeDataWeb() {
+bool takeDataWeb(bool reconnect) {
+  WiFiClient cli;
   bool flagSuccess = false;
   int i = 0;
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   //connect to WiFi
   Serial.printf("Connecting to %s ", ssid);
-  WiFi.disconnect();
+  
   WiFi.mode(WIFI_AP_STA);
-  WiFi.begin(ssid, password);
+
+  if(!reconnect)WiFi.begin(ssid, password);
+  else WiFi.reconnect();
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -160,7 +164,7 @@ bool takeDataWeb() {
   printLocalTime();
   ///HTTP
   HTTPClient http;
- //WiFiClient cli;
+  
 
   Serial.print("[HTTP] begin...\n");
   http.begin(httpSettings); //HTTP
@@ -196,7 +200,7 @@ bool takeDataWeb() {
 
   ////////////////
   //disconnect WiFi as it's no longer needed
- // WiFi.disconnect(true);
+    WiFi.disconnect(true);
 //  WiFi.mode(WIFI_OFF);
   return flagSuccess;
 }
@@ -233,9 +237,6 @@ void stateMachine(void);
 void loop()
 {
   byte i;
-
-  loopCounter++;
-
   sensors.begin();
 
   Serial.println(" ");
@@ -245,9 +246,9 @@ void loop()
   
   Serial.println(" ");
   if (loopCounter == 1){
-   takeDataWeb();
+   takeDataWeb(0);
   }
- 
+ loopCounter++;
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.print("Sensor 1(*C): ");
   Serial.print(sensors.getTempC(sensor1));
@@ -259,7 +260,7 @@ void loop()
  // Serial.flush();
 
   delay(1000);
-if((loopCounter%10) == 9)takeDataWeb();
+if((loopCounter%10) == 9)takeDataWeb(1);
 stateMachine();
   // esp_light_sleep_start();
   // esp_deep_sleep_start();
@@ -271,25 +272,7 @@ static int Stage = 0;
 
  switch (Stage){
   case 0:
-  Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  Serial.println(" ");
-   Serial.print(arrayParams[7]%100);
-  Serial.print("->");
-  Serial.print(timeinfo.tm_mday);
-    Serial.println(" ");
-     Serial.print((arrayParams[7]/100) - 1);
-  Serial.print("->");
-  Serial.print(timeinfo.tm_mon);
-  /////////////
-  if(timeinfo.tm_min == (arrayParams[6]%100) &&  timeinfo.tm_hour == (arrayParams[6]/100)){
-  Serial.print(arrayParams[6]/100);
-  Serial.print("->");
-  Serial.print(timeinfo.tm_hour);
-  Serial.println(" ");
-  Serial.print(arrayParams[6]%100);
-  Serial.print("->");
-  Serial.print(timeinfo.tm_min);
-  }
+   Serial.print(" Stage 0");
   ///////////
   if(timeinfo.tm_min == (arrayParams[6]%100) &&  
       timeinfo.tm_hour == (arrayParams[6]/100) &&  
@@ -298,17 +281,17 @@ static int Stage = 0;
   {
     Stage ++;
     unixTime[0] = mktime(&timeinfo);
-    Serial.print("Entered stage 1");
+    Serial.print(" Entered stage 1");
     }
           break;
   case 1:
      if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[0]){
           digitalWrite(PUMP1, LOW);
-          Serial.print(" Stage1 time:  ");Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+          Serial.print(" Stage 1 time:  ");Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
     }
     else{
           digitalWrite(PUMP1, HIGH); 
-          Serial.print("Entered stage 2");  
+          Serial.print(" Entered stage 2");  
           Stage ++;  
           unixTime[0] =  mktime(&timeinfo);
       }
@@ -317,7 +300,7 @@ static int Stage = 0;
      if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[1]){
           if (sensors.getTempC(sensor1) < arrayParams[2])digitalWrite(HEAT_RELAY, HIGH);
           else digitalWrite(HEAT_RELAY, LOW);
-          Serial.print(" Stage2 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+          Serial.print(" Stage 2 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
     }
     else{
           digitalWrite(HEAT_RELAY, LOW); 
@@ -345,7 +328,7 @@ static int Stage = 0;
           Serial.print(" Stage4 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
     }
     else{
-          digitalWrite(HEAT_RELAY, LOW); 
+          digitalWrite(COOLER, HIGH); 
           Serial.print("Entered stage 0");  
           Stage = 0;  
           unixTime[0] =  mktime(&timeinfo);
