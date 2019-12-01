@@ -206,20 +206,20 @@ void setup()
   Serial.begin(115200);
 
   pinMode (HEAT_RELAY, OUTPUT);
-  digitalWrite(HEAT_RELAY, HIGH);
+  digitalWrite(HEAT_RELAY, LOW);
   pinMode (PUMP1, OUTPUT);
-  digitalWrite(PUMP1, LOW);
+  digitalWrite(PUMP1, HIGH);
   pinMode (PUMP2, OUTPUT);
-  digitalWrite(PUMP2, LOW);
+  digitalWrite(PUMP2, HIGH);
   pinMode (COOLER, OUTPUT);
-  digitalWrite(COOLER, LOW);
+  digitalWrite(COOLER, HIGH);
 
   Serial.println(loopCounter);
   //if (LoopCount++ % 60 == 0) {
   //  takeDataWeb();
   // takeDataWeb();
 readParmsEEPROM(arrayParams);
-  for (int i = 0; i < 6; i++)
+  for (int i = 0; i < 8; i++)
   {
     Serial.print(arrayParams[i]); Serial.print(" ");
   }
@@ -291,20 +291,67 @@ static int Stage = 0;
   Serial.print(timeinfo.tm_min);
   }
   ///////////
-  if(timeinfo.tm_min == (arrayParams[6]%100) &&  timeinfo.tm_hour == (arrayParams[6]/100) &&  timeinfo.tm_mday == (arrayParams[7]%100) &&  timeinfo.tm_mon == ((arrayParams[7]/100) -1)){
+  if(timeinfo.tm_min == (arrayParams[6]%100) &&  
+      timeinfo.tm_hour == (arrayParams[6]/100) &&  
+      timeinfo.tm_mday == (arrayParams[7]%100) &&  
+      timeinfo.tm_mon == ((arrayParams[7]/100) -1))
+  {
     Stage ++;
     unixTime[0] = mktime(&timeinfo);
     Serial.print("Entered stage 1");
     }
           break;
   case 1:
+     if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[0]){
+          digitalWrite(PUMP1, LOW);
+          Serial.print(" Stage1 time:  ");Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+    }
+    else{
+          digitalWrite(PUMP1, HIGH); 
+          Serial.print("Entered stage 2");  
+          Stage ++;  
+          unixTime[0] =  mktime(&timeinfo);
+      }
           break;
   case 2:
+     if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[1]){
+          if (sensors.getTempC(sensor1) < arrayParams[2])digitalWrite(HEAT_RELAY, HIGH);
+          else digitalWrite(HEAT_RELAY, LOW);
+          Serial.print(" Stage2 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+    }
+    else{
+          digitalWrite(HEAT_RELAY, LOW); 
+          Serial.print("Entered stage 3");  
+          Stage ++;  
+          unixTime[0] =  mktime(&timeinfo);
+      }
           break;
-  case 3:                
+  case 3: 
+       if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[3]){
+          digitalWrite(PUMP2, LOW);
+          Serial.print(" Stage1 time:  ");Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+    }
+    else{
+          digitalWrite(PUMP2, HIGH); 
+          Serial.print("Entered stage 3");  
+          Stage ++;  
+          unixTime[0] =  mktime(&timeinfo);
+      }               
           break;
   case 4:
+       if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[4]){
+          if (sensors.getTempC(sensor2) < arrayParams[5])digitalWrite(COOLER, LOW);
+          else digitalWrite(COOLER, HIGH);
+          Serial.print(" Stage4 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
+    }
+    else{
+          digitalWrite(HEAT_RELAY, LOW); 
+          Serial.print("Entered stage 0");  
+          Stage = 0;  
+          unixTime[0] =  mktime(&timeinfo);
+      }
           break;
+   
   }
   
   return;
