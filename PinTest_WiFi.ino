@@ -40,6 +40,8 @@ int RTC_DATA_ATTR LoopCount = 0;
 signed char TemperatureArray[EEPROM_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7}; // temporal temperature array
 signed char TimeArray[EEPROM_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7}; // temporal temperature array
 
+time_t unixTime[2]={0,0};
+
 //signed char RTC_DATA_ATTR TemperatureArrayRTC[EEPROM_SIZE];
 //signed char RTC_DATA_ATTR TimeArrayRTC[EEPROM_SIZE];
 
@@ -58,7 +60,7 @@ void parseParms(String strToParse) {
   int numbIndex = 0;
   int numb[4];
 
-  for (int i = 0; i < 26; i++) {
+  for (int i = 0; i < 35; i++) {
     if (strToParse[i] == ':') {
       if (flag) {
         switch (numbIndex) {
@@ -72,7 +74,7 @@ void parseParms(String strToParse) {
             arrayParams[arrayIndex++] = (numb[0]) * 100 + (numb[1]) * 10 + numb[2];
             break;
           case 4:
-            arrayParams[arrayIndex++] = (numb[0]) * 100 + (numb[1]) * 100 + (numb[2]) * 10 + numb[3];
+            arrayParams[arrayIndex++] = (numb[0]) * 1000 + (numb[1]) * 100 + (numb[2]) * 10 + numb[3];
             break;
         }
 
@@ -101,7 +103,7 @@ void writeParmsEEPROM(int* arrayParams){
     Serial.println("failed to initialise EEPROM"); delay(1000000);
   }
 
-  for (int i = 0; i < 6; i++)
+  for (int i = 0; i < 8; i++)
   {
     EEPROM.write(Idx,arrayParams[i]&0xFF);
     EEPROM.write(Idx+1,arrayParams[i]>>8);
@@ -136,11 +138,14 @@ void printLocalTime()
   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
-void takeDataWeb() {
+bool takeDataWeb() {
+  bool flagSuccess = false;
   int i = 0;
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   //connect to WiFi
   Serial.printf("Connecting to %s ", ssid);
+  WiFi.disconnect();
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -155,10 +160,10 @@ void takeDataWeb() {
   printLocalTime();
   ///HTTP
   HTTPClient http;
-  WiFiClient cli;
+ //WiFiClient cli;
 
   Serial.print("[HTTP] begin...\n");
-  http.begin(cli, httpSettings); //HTTP
+  http.begin(httpSettings); //HTTP
   Serial.print("[HTTP] GET...\n");
   // start connection and send HTTP header
   int httpCode = http.GET();
@@ -176,10 +181,11 @@ void takeDataWeb() {
       parseParms(payload);
       writeParmsEEPROM(arrayParams);
       Serial.println("---------------------------------------");
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 8; i++) {
         Serial.print(arrayParams[i]);
         Serial.print(" : ");
       }
+      flagSuccess = true;
       Serial.println("---------------------------------------");
     }
   } else {
@@ -190,8 +196,9 @@ void takeDataWeb() {
 
   ////////////////
   //disconnect WiFi as it's no longer needed
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
+ // WiFi.disconnect(true);
+//  WiFi.mode(WIFI_OFF);
+  return flagSuccess;
 }
 //----------------------------------
 void setup()
@@ -221,10 +228,11 @@ readParmsEEPROM(arrayParams);
   sensors.begin();
 }
 
+void stateMachine(void);
+
 void loop()
 {
   byte i;
-  byte addr[8];
 
   loopCounter++;
 
@@ -232,33 +240,72 @@ void loop()
 
   Serial.println(" ");
   printLocalTime();
-
+  unixTime[1] = mktime(&timeinfo);
+  Serial.print(unixTime[1]);Serial.print(" ");
+  
   Serial.println(" ");
-  if (loopCounter == 1)takeDataWeb();
-  // if (LoopCount > 1){
+  if (loopCounter == 1){
+   takeDataWeb();
+  }
+ 
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.print("Sensor 1(*C): ");
   Serial.print(sensors.getTempC(sensor1));
   Serial.print(" Sensor 2(*C): ");
   Serial.print(sensors.getTempC(sensor2));
-  //}
-  //reload
   // esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 
 
-  Serial.flush();
-
-
-  //if (loopCounter % 10 == 0){
-  //  WiFi.mode(WIFI_STA);
-  //  takeDataWeb();
-  //  }
+ // Serial.flush();
 
   delay(1000);
-  //digitalWrite(HEAT_RELAY, LOW);
-  //delay(1000);
-  //  esp_wifi_stop();
+if((loopCounter%10) == 9)takeDataWeb();
+stateMachine();
   // esp_light_sleep_start();
   // esp_deep_sleep_start();
-  //Serial.println("This will never be printed");
+ 
 }
+
+void stateMachine(void){
+static int Stage = 0;
+
+ switch (Stage){
+  case 0:
+  Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  Serial.println(" ");
+   Serial.print(arrayParams[7]%100);
+  Serial.print("->");
+  Serial.print(timeinfo.tm_mday);
+    Serial.println(" ");
+     Serial.print((arrayParams[7]/100) - 1);
+  Serial.print("->");
+  Serial.print(timeinfo.tm_mon);
+  /////////////
+  if(timeinfo.tm_min == (arrayParams[6]%100) &&  timeinfo.tm_hour == (arrayParams[6]/100)){
+  Serial.print(arrayParams[6]/100);
+  Serial.print("->");
+  Serial.print(timeinfo.tm_hour);
+  Serial.println(" ");
+  Serial.print(arrayParams[6]%100);
+  Serial.print("->");
+  Serial.print(timeinfo.tm_min);
+  }
+  ///////////
+  if(timeinfo.tm_min == (arrayParams[6]%100) &&  timeinfo.tm_hour == (arrayParams[6]/100) &&  timeinfo.tm_mday == (arrayParams[7]%100) &&  timeinfo.tm_mon == ((arrayParams[7]/100) -1)){
+    Stage ++;
+    unixTime[0] = mktime(&timeinfo);
+    Serial.print("Entered stage 1");
+    }
+          break;
+  case 1:
+          break;
+  case 2:
+          break;
+  case 3:                
+          break;
+  case 4:
+          break;
+  }
+  
+  return;
+  }
