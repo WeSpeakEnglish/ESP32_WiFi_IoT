@@ -89,7 +89,9 @@ void takeDataWeb() {
     // file found at server
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
+      Serial.println("---------------------------------------");
       Serial.println(payload);
+      Serial.println("---------------------------------------");
     }
   } else {
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
