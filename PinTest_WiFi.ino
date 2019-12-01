@@ -33,7 +33,7 @@ int RTC_DATA_ATTR LoopCount = 0;
 #define PUMP2  32 // backward compatibility
 #define COOLER 33 // backward compatibility
 
-#define EEPROM_SIZE 32
+#define EEPROM_SIZE 16
 #define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  5        /* Time ESP32 will go to sleep (in seconds) */
 
@@ -94,6 +94,39 @@ void parseParms(String strToParse) {
   }
 }
 
+void writeParmsEEPROM(int* arrayParams){
+  int Idx = 0;
+  if (!EEPROM.begin(EEPROM_SIZE))
+  {
+    Serial.println("failed to initialise EEPROM"); delay(1000000);
+  }
+
+  for (int i = 0; i < 6; i++)
+  {
+    EEPROM.write(Idx,arrayParams[i]&0xFF);
+    EEPROM.write(Idx+1,arrayParams[i]>>8);
+    EEPROM.commit();
+    Serial.print(EEPROM.read(Idx));Serial.print(",");Serial.print(EEPROM.read(Idx+1));Serial.println(";");
+    Idx+=2;
+  }
+  
+  }
+  
+void readParmsEEPROM(int* arrayParams){
+  int Idx = 0;
+  if (!EEPROM.begin(EEPROM_SIZE))
+  {
+    Serial.println("failed to initialise EEPROM"); delay(1000000);
+  }
+
+  for (int i = 0; i < 8; i++)
+  {
+   arrayParams[i] = EEPROM.read(Idx++);
+   arrayParams[i] += EEPROM.read(Idx++)<<8;
+
+  }
+  
+  }
 void printLocalTime()
 {
   if (!getLocalTime(&timeinfo)) {
@@ -141,6 +174,7 @@ void takeDataWeb() {
       Serial.println("---------------------------------------");
       Serial.println(payload);
       parseParms(payload);
+      writeParmsEEPROM(arrayParams);
       Serial.println("---------------------------------------");
       for (int i = 0; i < 6; i++) {
         Serial.print(arrayParams[i]);
@@ -177,15 +211,10 @@ void setup()
   //if (LoopCount++ % 60 == 0) {
   //  takeDataWeb();
   // takeDataWeb();
-
-  if (!EEPROM.begin(EEPROM_SIZE))
+readParmsEEPROM(arrayParams);
+  for (int i = 0; i < 6; i++)
   {
-    Serial.println("failed to initialise EEPROM"); delay(1000000);
-  }
-  Serial.println(" bytes read from Flash . Values are:");
-  for (int i = 0; i < EEPROM_SIZE; i++)
-  {
-    Serial.print(byte(EEPROM.read(i))); Serial.print(" ");
+    Serial.print(arrayParams[i]); Serial.print(" ");
   }
   Serial.println("Setup done");
   // }
