@@ -340,7 +340,7 @@ static int Stage = 0;
           break;
   case 4:
        if(difftime(mktime(&timeinfo), unixTime[0]) < arrayParams[4]){
-          if (sensors.getTempC(sensor2) < arrayParams[5])digitalWrite(COOLER, LOW);
+          if (sensors.getTempC(sensor2) > arrayParams[5])digitalWrite(COOLER, LOW);
           else digitalWrite(COOLER, HIGH);
           Serial.print(" Stage4 time:  "); Serial.print(difftime(mktime(&timeinfo), unixTime[0]));
     }
